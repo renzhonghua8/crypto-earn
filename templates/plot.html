@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Plots</title>
+</head>
+<body>
+    <h1>Price and Binance Data Over Time</h1>
+    <form method="POST">
+        <label for="symbol">Symbol:</label>
+        <input type="text" id="symbol" name="symbol" value="{{ symbol }}"><br>
+        <label for="time_type">Time Type:</label>
+        <input type="text" id="time_type" name="time_type" value="{{ time_type }}"><br>
+        <label for="currency">Currency:</label>
+        <input type="text" id="currency" name="currency" value="{{ currency }}"><br>
+        <label for="currency">threshold:</label>
+        <input type="text" id="threshold" name="threshold" value="{{ threshold }}"><br>
+        <input type="submit" value="Generate Plot">
+
+    </form>
+    <br>
+    {% if plots_data %}
+    <h2>Price and Binance Data:</h2>
+    <img src="data:image/png;base64,{{ plots_data }}" alt="Price and Binance Data">
+    {% endif %}
+</body>
+</html>
