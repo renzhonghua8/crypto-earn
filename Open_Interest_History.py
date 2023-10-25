@@ -1,11 +1,11 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify, Blueprint
 import requests
 import matplotlib.pyplot as plt
 import datetime
 from io import BytesIO
 import base64
 
-app = Flask(__name__)
+chart_blueprint = Blueprint('Open_Interest_History', __name__)
 
 # 默认参数值
 DEFAULT_SYMBOL = "BTC"
@@ -15,7 +15,7 @@ DEFAULT_THRESHOLD = 5  # 默认的差异阈值
 
 def generate_plots(symbol, time_type, currency, threshold):
     # 根据用户输入的参数构建API请求
-    url = "https://open-api.coinglass.com/public/v2/open_interest_history"
+    url = f"https://open-api.coinglass.com/public/v2/open_interest_history"
     params = {
         "symbol": symbol,
         "time_type": time_type,
@@ -87,9 +87,11 @@ def generate_plots(symbol, time_type, currency, threshold):
     plt.tight_layout()
     plt.savefig(img, format='png')
     img.seek(0)
-    return base64.b64encode(img.getvalue()).decode()
+    plots_data = base64.b64encode(img.getvalue()).decode()
 
-@app.route('/', methods=['GET', 'POST'])
+    return plots_data
+
+@chart_blueprint.route('/', methods=['GET', 'POST'])
 def show_plots():
     if request.method == 'POST':
         # 获取用户输入的参数
@@ -106,7 +108,6 @@ def show_plots():
         threshold = DEFAULT_THRESHOLD
         plots_data = None
 
-    return render_template('plot.html', plots_data=plots_data, symbol=symbol, time_type=time_type, currency=currency, threshold=threshold)
+    return render_template('Open_Interest_History.html', plots_data=plots_data, symbol=symbol, time_type=time_type, currency=currency, threshold=threshold)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+

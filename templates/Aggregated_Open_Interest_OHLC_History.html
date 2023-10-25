@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>未平仓合约图表</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <h1>未平仓合约图表</h1>
+
+    <!-- 参数选择表单 -->
+    <form action="/" method="get">
+        <label for="symbol">币种：</label>
+        <input type="text" name="symbol" id="symbol" value="{{ symbol }}" required>
+        <label for="interval">时间周期：</label>
+        <select name="interval" id="interval" required>
+            <option value="h1" {% if interval == 'h1' %}selected{% endif %}>1小时</option>
+            <option value="h4" {% if interval == 'h4' %}selected{% endif %}>4小时</option>
+            <option value="h12" {% if interval == 'h12' %}selected{% endif %}>12小时</option>
+            <option value="h24" {% if interval == 'h12' %}selected{% endif %}>24小时</option>
+
+        </select>
+        <label for="dataPoints">数据点数量：</label>
+        <select name="dataPoints" id="dataPoints" required>
+            <option value="24">最近1日</option>
+            <option value="72">最近3日</option>
+            <option value="168">最近1周</option>
+            <option value="720">最近1月</option>
+        </select>
+        <button type="submit">更新图表</button>
+    </form>
+
+    <canvas id="chartCanvas"></canvas>
+
+    <script>
+        var chartData = {{ chart_data|tojson|safe }};
+        var labels = chartData.labels;
+        var values = chartData.values;
+
+        var ctx = document.getElementById('chartCanvas').getContext('2d');
+        var chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,  // 横坐标标签
+                datasets: [
+                    {
+                        label: '未平仓合约',
+                        data: values,  // 纵坐标数据
+                        borderColor: 'blue',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: '时间'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: '未平仓合约'
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
