@@ -106,7 +106,7 @@ def show_plots():
         threshold = DEFAULT_THRESHOLD
         plots_data = None
 
-    return render_template('plot.html', plots_data=plots_data, symbol=symbol, time_type=time_type, currency=currency, threshold=threshold)
+    return render_template('Open_Interest_History.html', plots_data=plots_data, symbol=symbol, time_type=time_type, currency=currency, threshold=threshold)
 
 if __name__ == '__main__':
     app.run(debug=True)
