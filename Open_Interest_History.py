@@ -42,7 +42,7 @@ def generate_plots(symbol, time_type, currency, threshold):
     # 绘制价格数据
     plt.subplot(2, 1, 1)
     plt.plot(dates, priceList, label="Price", marker='o', linestyle='-', markersize=2)
-    plt.xlabel("Date")
+    plt.xlabel("")
     plt.ylabel("Price")
     plt.title("Price Over Time")
     plt.grid(True)
@@ -77,9 +77,9 @@ def generate_plots(symbol, time_type, currency, threshold):
             color = 'green'
         plt.plot(dates[i], binanceData[i], color=color, marker='o', linestyle='-', linewidth=2, markersize=6, label="Binance Data")
 
-    plt.xlabel("Date")
-    plt.ylabel("Binance Data")
-    plt.title("Binance Data Over Time")
+    plt.xlabel("")
+    plt.ylabel("Data")
+    plt.title("Open Interest Over Time")
     plt.grid(True)
 
     # 将绘图保存到字节流

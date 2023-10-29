@@ -1,15 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>未平仓合约图表</title>
+    <title>Aggregated_Open_Interest_OHLC_History</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
 </head>
 <body>
     {% include 'navbar.html' %}
-    <h1>未平仓合约图表</h1>
+    <h1>Aggregated_Open_Interest_OHLC_History</h1>
 
     <!-- 参数选择表单 -->
-    <form action="/" method="get">
+    <form id="chartForm"> <!-- 添加id属性 -->
         <label for="symbol">币种：</label>
         <input type="text" name="symbol" id="symbol" value="{{ symbol }}" required>
         <label for="interval">时间周期：</label>
@@ -17,15 +17,14 @@
             <option value="h1" {% if interval == 'h1' %}selected{% endif %}>1小时</option>
             <option value="h4" {% if interval == 'h4' %}selected{% endif %}>4小时</option>
             <option value="h12" {% if interval == 'h12' %}selected{% endif %}>12小时</option>
-            <option value="h24" {% if interval == 'h12' %}selected{% endif %}>24小时</option>
-
+            <option value="h24" {% if interval == 'h24' %}selected{% endif %}>24小时</option>
         </select>
-        <label for="dataPoints">数据点数量：</label>
+        <label for="dataPoints">数据量：</label>
         <select name="dataPoints" id="dataPoints" required>
-            <option value="24">最近1日</option>
-            <option value="72">最近3日</option>
-            <option value="168">最近1周</option>
-            <option value="720">最近1月</option>
+            <option value="24">最近24个</option>
+            <option value="72">最近72个</option>
+            <option value="168">最近168个</option>
+            <option value="720">最近720个</option>
         </select>
         <button type="submit">更新图表</button>
     </form>
@@ -41,11 +40,11 @@
         var chart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,  // 横坐标标签
+                labels: labels,
                 datasets: [
                     {
                         label: '未平仓合约',
-                        data: values,  // 纵坐标数据
+                        data: values,
                         borderColor: 'blue',
                         borderWidth: 2
                     }
@@ -69,6 +68,31 @@
                 }
             }
         });
+
+        // 添加事件监听器以在表单提交时更新图表
+        document.getElementById('chartForm').addEventListener('submit', function (e) {
+            e.preventDefault(); // 阻止表单默认提交
+            updateChart(); // 调用更新图表函数
+        });
+
+        // 更新前端JavaScript代码
+function updateChart() {
+    var symbol = document.getElementById('symbol').value;
+    var interval = document.getElementById('interval').value;
+    var dataPoints = document.getElementById('dataPoints').value;
+
+    fetch(`/Aggregated_Open_Interest_OHLC_History/data?symbol=${symbol}&interval=${interval}&dataPoints=${dataPoints}`)
+        .then(response => response.json())
+        .then(data => {
+            chart.data.labels = data.labels;
+            chart.data.datasets[0].data = data.values;
+            chart.update();
+        })
+        .catch(error => {
+            console.error("请求出错：", error);
+        });
+}
+
     </script>
 </body>
 </html>

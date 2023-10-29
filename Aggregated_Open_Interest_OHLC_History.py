@@ -1,6 +1,6 @@
 # Aggregated_Open_Interest_OHLC_History.py
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, jsonify
 import requests
 from datetime import datetime
 
@@ -32,3 +32,15 @@ def chart():
     # 获取真实数据
     chart_data = get_real_chart_data(symbol, interval, data_points)
     return render_template('Aggregated_Open_Interest_OHLC_History.html', chart_data=chart_data, symbol=symbol, interval=interval, dataPoints=data_points)
+
+
+@chart_blueprint.route('/data')
+def get_chart_data():
+    # 获取币种、时间周期和数据点数量参数
+    symbol = request.args.get('symbol', 'BTC')
+    interval = request.args.get('interval', 'h1')
+    dataPoints = int(request.args.get('dataPoints', 24))
+
+    # 获取真实数据
+    chart_data = get_real_chart_data(symbol, interval, dataPoints)
+    return jsonify(chart_data)
