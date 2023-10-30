@@ -1,97 +1,41 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Open_Interest_History</title>
+    <title>Open Interest History</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-        }
-
-        h1 {
-            font-size: 24px;
-            text-align: center;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            text-align: center; /* 居中对齐表单内所有元素的文本 */
-            margin-top: 20px;
-        }
-
-        label {
-            font-size: 16px;
-            text-align: center; /* 居中对齐标签文本 */
-        }
-
-        select,
-        input[type="text"] {
-            padding: 10px;
-            margin: 10px 0;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 100%;
-        }
-
-        button[type="submit"] {
-            background-color: #007BFF;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-
-        img {
-            max-width: 100%;
-            margin-top: 20px;
-            display: block;
-            margin: 0 auto;
-        }
+        /* ... 这里是CSS样式 ... */
     </style>
 </head>
 <body>
-    {% include 'navbar.html' %}
-    <h1>Open_Interest_History</h1>
+    <h1>Open Interest History</h1>
     <form method="POST">
         <label for="symbol">Symbol:</label>
-        <input type="text" id="symbol" name="symbol" value="BTC">
-            <!-- 添加其他币种选项 -->
-        </select>
+        <input type="text" id="symbol" name="symbol" value="{{ request.form.symbol or 'BTC' }}">
         <label for="time_type">Time Type:</label>
         <select id="time_type" name="time_type">
-            <option value="h1">1小时</option>
-            <option value="h4">4小时</option>
-            <option value="h12">12小时</option>
-            <!-- 添加其他时间周期选项 -->
+            <option value="h1">1 Hour</option>
+            <option value="h4">4 Hour</option>
+            <option value="h12">12 Hour</option>
+
         </select>
         <label for="currency">Currency:</label>
         <select id="currency" name="currency">
             <option value="USDT">USDT</option>
             <option value="USD">USD</option>
-            <!-- 添加其他货币选项 -->
+
         </select>
-        <label for "threshold">Threshold:</label>
-        <select id="threshold" name="threshold">
-            <option value="1.0">1</option>
-            <option value="2.0">2</option>
-            <option value="3.0">3</option>
-            <option value="4.0">4</option>
-            <option value="5.0">5</option>
-            <!-- 添加其他阈值选项 -->
-        </select>
-        <button type="submit" style="margin-top: 10px;">Generate Plot</button>
+        <label for="threshold">Threshold:</label>
+        <input type="number" id="threshold" name="threshold" value="{{ request.form.threshold or '1' }}">
+        <button type="submit" name="generate_single">Generate Single Plot</button>
+        <button type="submit" name="generate_multiple">Generate Multiple Plots</button>
     </form>
 
-    <br>
     {% if plots_data %}
-    <h2>Open_Interest_History:</h2>
-    <img src="data:image/png;base64,{{ plots_data }}" alt="Open_Interest_History">
+        <h2>Generated Plots:</h2>
+        {% for symbol, data in plots_data.items() %}
+            <h3>{{ symbol }}:</h3>
+            <img src="data:image/png;base64,{{ data }}" alt="Plot for {{ symbol }}">
+        {% endfor %}
     {% endif %}
 </body>
 </html>
