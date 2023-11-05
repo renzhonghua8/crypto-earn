@@ -1,5 +1,5 @@
 import time
-
+import concurrent.futures
 from flask import Flask, render_template, request, jsonify, Blueprint
 import requests
 import matplotlib.pyplot as plt
@@ -7,15 +7,42 @@ import datetime
 from io import BytesIO
 import base64
 from itertools import islice
+from threading import Lock
+from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 chart_blueprint = Blueprint('Open_Interest_History', __name__)
-
+api_keys = ['1f63042b22f14f02bdeb9bf35bac0e99', 'c3115385695f4af9b5b5e657216899c9', 'ea5e5fa04ae24d3eb5f364951053cd1d']  # 你的API密钥
 # 默认参数值
+api_key = '1f63042b22f14f02bdeb9bf35bac0e99'
 DEFAULT_SYMBOL = "BTC"
 DEFAULT_TIME_TYPE = "h1"
 DEFAULT_CURRENCY = "USDT"
 DEFAULT_THRESHOLD = 1
+symbols = [
+                "1000FLOKI", "1000LUNC", "1000PEPE", "1000SHIB", "1000XEC", "1INCH", "AAVE", "ACH", "ADA", "AGIX",
+                "AGLD", "ALGO", "ALICE", "ALPHA", "AMB", "ANKR", "ANT", "APE", "API3", "APT",
+                "ARB", "ARKM", "ARK", "ARPA", "AR", "ASTR", "ATA", "ATOM", "AUDIO", "AVAX",
+                "AXS", "BAKE", "BAL", "BAND", "BAT", "BCH", "BEL", "BICO", "BIGTIME", "BLUEBIRD",
+                "BLUR", "BLZ", "BNB", "BNT", "BNX", "BOND", "BSV", "BTC", "C98", "CAKE",
+                "CELO", "CELR", "CFX", "CHR", "CHZ", "CKB", "COMBO", "COMP", "COTI", "CRV",
+                "CTK", "CTSI", "CVX", "CYBER", "DAR", "DASH", "DEFI", "DENT", "DGB", "DODOX",
+                "DOGE", "DOT", "DUSK", "DYDX", "EDU", "EGLD", "ENJ", "ENS", "EOS", "ETC",
+                "ETH", "FET", "FIL", "FLM", "FLOW", "FOOTBALL", "FRONT", "FTM", "FXS", "GALA",
+                "GAL", "GAS", "GLMR", "GMT", "GMX", "GRT", "GTC", "HBAR", "HFT", "HIFI",
+                "HIGH", "HOOK", "HOT", "ICP", "ICX", "IDEX", "ID", "IMX", "INJ", "IOST",
+                "IOTA", "IOTX", "JASMY", "JOE", "KAVA", "KEY", "KLAY", "KNC", "KSM", "LDO",
+                "LEVER", "LINA", "LINK", "LIT","LOOM", "LPT", "LQTY", "LRC", "LTC", "LUNA2", "MAGIC",
+                "MANA", "MASK", "MATIC", "MAV", "MDT", "MEME", "MINA", "MKR", "MTL", "NEAR",
+                "NEO", "NKN", "NMR", "OCEAN", "OGN", "OMG", "ONE", "ONT", "OP", "ORBS",
+                "OXT", "PENDLE", "PEOPLE", "PERP", "PHB", "POLYX", "POWR", "QNT", "QTUM", "RAD",
+                "RDNT", "REEF", "REN", "RIF", "RLC", "RNDR", "ROSE", "RSR", "RUNE", "RVN",
+                "SAND", "SEI", "SFP", "SKL", "SLP", "SNT", "SNX", "SOL", "SPELL", "SSV",
+                "STG", "STMX", "STORJ", "STPT", "STRAX", "STX", "SUI", "SUSHI", "SXP", "THETA",
+                "TIA", "TLM", "TOKEN", "TOMO", "TRB", "TRU", "TRX", "TU", "TWT", "UMA",
+                "UNFI", "UNI", "VET", "WAVES", "WAXP", "WLD", "WOO", "XEM", "XLM", "XMR",
+                "XRP", "XTZ", "XVG", "XVS", "YFI", "YGG", "ZEC", "ZEN", "ZIL", "ZRX"
+            ]
 
 def batch(iterable, size):
     iterator = iter(iterable)
@@ -25,7 +52,7 @@ def batch(iterable, size):
             break
         yield batch
 
-def generate_plot(symbol, time_type, currency, threshold):
+def generate_plot(symbol, time_type, currency, threshold,apikey):
     try:
         url = f"https://open-api.coinglass.com/public/v2/open_interest_history"
         params = {
@@ -34,10 +61,9 @@ def generate_plot(symbol, time_type, currency, threshold):
             "currency": currency
         }
         headers = {
-            "coinglassSecret": "c3115385695f4af9b5b5e657216899c9",
+            "coinglassSecret": api_key,
             "User-Agent": "Apifox/1.0.0 (https://apifox.com)"
         }
-
         response = requests.get(url, params=params, headers=headers)
         data = response.json()
 
@@ -125,21 +151,38 @@ def generate_plot(symbol, time_type, currency, threshold):
         return None, None
 
 
-def generate_multiple_plots(symbols, time_type, currency, threshold):
+def generate_multiple_plots(symbols, time_type, currency, threshold, api_keys):
     plots_data = {}
     statistics_list = {}
-    # 分批处理每次15个symbols
-    for batch_symbols in batch(symbols, 15):
-        for symbol in batch_symbols:
-            plot_data, stats = generate_plot(symbol, time_type, currency, threshold)
-            # 确保plot_data和stats不是None，然后再进行下一步处理
+
+    # 确保symbols列表中有足够的元素
+    if len(symbols) < len(api_keys) * 15:
+        raise ValueError("Not enough symbols for the number of API keys provided.")
+
+    # 为每个API密钥分配15个symbols，确保没有重复
+    symbols_per_api = [symbols[i*15:(i+1)*15] for i in range(len(api_keys))]
+
+    def worker(api_key, symbols_batch):
+        for symbol in symbols_batch:
+            plot_data, stats = generate_plot(symbol, time_type, currency, threshold, api_key)  # 确保传递 api_key
             if plot_data is not None and stats is not None:
                 plots_data[symbol] = plot_data
                 statistics_list[symbol] = stats
             else:
-                # 处理这个symbol因为错误没有数据的情况
-                print(f"跳过 {symbol}，因为没有生成数据。")
-        time.sleep(60)
+                print(f"由于没有生成数据，跳过 {symbol}。")
+        time.sleep(60)  # 在此API密钥的所有调用完成后等待60秒
+
+    # 创建一个ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=len(api_keys)) as executor:
+        # 提交每个API密钥及其对应的symbols列表到线程池
+        futures = []
+        for api_key, symbols_batch in zip(api_keys, symbols_per_api):
+            futures.append(executor.submit(worker, api_key, symbols_batch))
+
+        for future in concurrent.futures.as_completed(futures):
+            # 每个API的批处理完成后不做任何事情，因为我们已经在worker函数中添加了等待
+            pass
+
     return plots_data, statistics_list
 
 
@@ -155,42 +198,23 @@ def show_plots():
         threshold = float(request.form.get('threshold', DEFAULT_THRESHOLD))
 
         if 'generate_multiple' in request.form:
-            symbols = [
-                "1000FLOKI", "1000LUNC", "1000PEPE", "1000SHIB", "1000XEC", "1INCH", "AAVE", "ACH", "ADA", "AGIX",
-                "AGLD", "ALGO", "ALICE", "ALPHA", "AMB", "ANKR", "ANT", "APE", "API3", "APT",
-                "ARB", "ARKM", "ARK", "ARPA", "AR", "ASTR", "ATA", "ATOM", "AUDIO", "AVAX",
-                "AXS", "BAKE", "BAL", "BAND", "BAT", "BCH", "BEL", "BICO", "BIGTIME", "BLUEBIRD",
-                "BLUR", "BLZ", "BNB", "BNT", "BNX", "BOND", "BSV", "BTC", "C98", "CAKE",
-                "CELO", "CELR", "CFX", "CHR", "CHZ", "CKB", "COMBO", "COMP", "COTI", "CRV",
-                "CTK", "CTSI", "CVX", "CYBER", "DAR", "DASH", "DEFI", "DENT", "DGB", "DODOX",
-                "DOGE", "DOT", "DUSK", "DYDX", "EDU", "EGLD", "ENJ", "ENS", "EOS", "ETC",
-                "ETH", "FET", "FIL", "FLM", "FLOW", "FOOTBALL", "FRONT", "FTM", "FXS", "GALA",
-                "GAL", "GAS", "GLMR", "GMT", "GMX", "GRT", "GTC", "HBAR", "HFT", "HIFI",
-                "HIGH", "HOOK", "HOT", "ICP", "ICX", "IDEX", "ID", "IMX", "INJ", "IOST",
-                "IOTA", "IOTX", "JASMY", "JOE", "KAVA", "KEY", "KLAY", "KNC", "KSM", "LDO",
-                "LEVER", "LINA", "LINK", "LIT","LOOM", "LPT", "LQTY", "LRC", "LTC", "LUNA2", "MAGIC",
-                "MANA", "MASK", "MATIC", "MAV", "MDT", "MEME", "MINA", "MKR", "MTL", "NEAR",
-                "NEO", "NKN", "NMR", "OCEAN", "OGN", "OMG", "ONE", "ONT", "OP", "ORBS",
-                "OXT", "PENDLE", "PEOPLE", "PERP", "PHB", "POLYX", "POWR", "QNT", "QTUM", "RAD",
-                "RDNT", "REEF", "REN", "RIF", "RLC", "RNDR", "ROSE", "RSR", "RUNE", "RVN",
-                "SAND", "SEI", "SFP", "SKL", "SLP", "SNT", "SNX", "SOL", "SPELL", "SSV",
-                "STG", "STMX", "STORJ", "STPT", "STRAX", "STX", "SUI", "SUSHI", "SXP", "THETA",
-                "TIA", "TLM", "TOKEN", "TOMO", "TRB", "TRU", "TRX", "TU", "TWT", "UMA",
-                "UNFI", "UNI", "VET", "WAVES", "WAXP", "WLD", "WOO", "XEM", "XLM", "XMR",
-                "XRP", "XTZ", "XVG", "XVS", "YFI", "YGG", "ZEC", "ZEN", "ZIL", "ZRX"
-            ]
-            plots_data, statistics_list = generate_multiple_plots(symbols, time_type, currency, threshold)
+            try:
 
-            # 在发送到前端之前，按 data_change 对数据进行排序
-            sorted_items = sorted(statistics_list.items(), key=lambda item: item[1]['data_change'] if item[1]['data_change'] is not None else -float('inf'), reverse=True)
-            # 创建新的排序后的字典
-            sorted_statistics_list = {k: v for k, v in sorted_items}
-            sorted_plots_data = {k: plots_data[k] for k, _ in sorted_items}
-            plots_data = sorted_plots_data
-            statistics_list = sorted_statistics_list
+                plots_data, statistics_list = generate_multiple_plots(symbols, time_type, currency, threshold,api_keys)
+
+                # 在发送到前端之前，按 data_change 对数据进行排序
+                sorted_items = sorted(statistics_list.items(), key=lambda item: item[1]['data_change'] if item[1]['data_change'] is not None else -float('inf'), reverse=True)
+                # 创建新的排序后的字典
+                sorted_statistics_list = {k: v for k, v in sorted_items}
+                sorted_plots_data = {k: plots_data[k] for k, _ in sorted_items}
+                plots_data = sorted_plots_data
+                statistics_list = sorted_statistics_list
+            except ValueError as e:
+                # 处理错误，例如，返回错误信息给客户端
+                return jsonify({'error': str(e)}), 400
 
         else:
-            plot_data, stats = generate_plot(symbol, time_type, currency, threshold)
+            plot_data, stats = generate_plot(symbol, time_type, currency, threshold,api_key)
             if plot_data and stats:
                 plots_data = {symbol: plot_data}
                 statistics_list = {symbol: stats}
