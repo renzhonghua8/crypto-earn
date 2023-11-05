@@ -16,6 +16,7 @@ DEFAULT_THRESHOLD = 1
 
 
 def generate_plot(symbol, time_type, currency, threshold):
+
     url = f"https://open-api.coinglass.com/public/v2/open_interest_history"
     params = {
         "symbol": symbol,
@@ -46,7 +47,8 @@ def generate_plot(symbol, time_type, currency, threshold):
     else:
         print("No data available in response")
         return None  # 或者其他错误处理
-
+    if not priceList or not binanceData:
+        return None, None
     # 创建两个图表
     plt.figure(figsize=(12, 6))
 
@@ -96,19 +98,35 @@ def generate_plot(symbol, time_type, currency, threshold):
     plot_data = base64.b64encode(img.getvalue()).decode()
     plt.close()
 
-    return plot_data
+    # Calculate statistics
+    statistics = {
+        'max_price': max(priceList) if priceList else None,
+        'min_price': min(priceList) if priceList else None,
+        'max_data': max(binanceData) if binanceData else None,
+        'min_data': min(binanceData) if binanceData else None,
+        'price_change': ((priceList[-1] - priceList[0]) / priceList[0] * 100) if len(priceList) > 1 else None,
+        'data_change': ((binanceData[-1] - binanceData[0]) / binanceData[0] * 100) if len(binanceData) > 1 else None,
+    }
+
+    return plot_data, statistics
 
 
 def generate_multiple_plots(symbols, time_type, currency, threshold):
     plots_data = {}
+    statistics_list = {}
     for symbol in symbols:
-        plot_data = generate_plot(symbol, time_type, currency, threshold)
-        plots_data[symbol] = plot_data
-    return plots_data
+        plot_data, stats = generate_plot(symbol, time_type, currency, threshold)
+        if plot_data and stats:
+            plots_data[symbol] = plot_data
+            statistics_list[symbol] = stats
+    return plots_data, statistics_list
 
 
 @chart_blueprint.route('/', methods=['GET', 'POST'])
 def show_plots():
+    plots_data = None
+    statistics_list = None
+
     if request.method == 'POST':
         symbol = request.form.get('symbol', DEFAULT_SYMBOL)
         time_type = request.form.get('time_type', DEFAULT_TIME_TYPE)
@@ -116,19 +134,40 @@ def show_plots():
         threshold = float(request.form.get('threshold', DEFAULT_THRESHOLD))
 
         if 'generate_multiple' in request.form:
-            symbols = ['BTC','ETH','BNB','XRP','SOL','ADA','DOGE','TRX','LINK','MATIC',
-                       'DOT','LTC','BCH','1000SHIB','AVAX','XLM','XMR','ATOM','UNI','ETC',
-                       'ICP','HBAR','FIL','APT','LDO','VET','MKR','QNT','NEAR','OP']
+            symbols = ['BTC', 'ETH', 'BNB', 'XRP', 'SOL', 'ADA', 'DOGE', 'TRX', 'LINK', 'MATIC',
+                       'DOT', 'LTC', 'BCH', '1000SHIB', 'AVAX', 'UNI', 'ALGO', 'VET', 'ICP', 'FIL']
+            plots_data, statistics_list = generate_multiple_plots(symbols, time_type, currency, threshold)
 
-            # 你想展示的多个符号
-            plots_data = generate_multiple_plots(symbols, time_type, currency, threshold)
+            # 在发送到前端之前，按 data_change 对数据进行排序
+            sorted_items = sorted(statistics_list.items(), key=lambda item: item[1]['data_change'] if item[1]['data_change'] is not None else -float('inf'), reverse=True)
+            # 创建新的排序后的字典
+            sorted_statistics_list = {k: v for k, v in sorted_items}
+            sorted_plots_data = {k: plots_data[k] for k, _ in sorted_items}
+            plots_data = sorted_plots_data
+            statistics_list = sorted_statistics_list
+
         else:
-            plots_data = {symbol: generate_plot(symbol, time_type, currency, threshold)}
+            plot_data, stats = generate_plot(symbol, time_type, currency, threshold)
+            if plot_data and stats:
+                plots_data = {symbol: plot_data}
+                statistics_list = {symbol: stats}
+                # 单个项目不需要排序
+            else:
+                # 处理无数据情况
+                plots_data = {}
+                statistics_list = {}
 
-    else:
-        plots_data = None
-
-    return render_template('Open_Interest_History.html', plots_data=plots_data)
+    return render_template('Open_Interest_History.html', plots_data=plots_data, statistics_list=statistics_list)
+def calculate_statistics(data):
+    # 假设 `data` 是一个包含所有需要计算统计信息的列表
+    max_data = max(data)
+    min_data = min(data)
+    data_change = ((max_data - min_data) / min_data * 100) if min_data != 0 else 0
+    return {
+        'max_data': max_data,
+        'min_data': min_data,
+        'data_change': data_change
+    }
 
 
 

@@ -4,6 +4,9 @@
     <title>Open Interest History</title>
     <style>
         /* ... 这里是CSS样式 ... */
+        .highlight {
+            color: red;
+            font-weight: bold;
     </style>
 </head>
 <body>
@@ -29,12 +32,24 @@
         <button type="submit" name="generate_single">Generate Single Plot</button>
         <button type="submit" name="generate_multiple">Generate Multiple Plots</button>
     </form>
-
     {% if plots_data %}
         <h2>Generated Plots:</h2>
-        {% for symbol, data in plots_data.items() %}
-            <h3>{{ symbol }}:</h3>
-            <img src="data:image/png;base64,{{ data }}" alt="Plot for {{ symbol }}">
+        {% for symbol, plot in plots_data.items() %}
+            <div class="plot-container">
+                <h3>{{ symbol }} Plot:</h3>
+                <img src="data:image/png;base64,{{ plot }}" alt="Plot for {{ symbol }}">
+                {% if statistics_list and statistics_list[symbol] %}
+                    <div class="statistics">
+                        <h4>Statistics for {{ symbol }}:</h4>
+                        <p>Max Price: {{ statistics_list[symbol].max_price }}</p>
+                        <p>Min Price: {{ statistics_list[symbol].min_price }}</p>
+                         <p><span class="highlight">Price Change:</span> {{ statistics_list[symbol].price_change | round(2) }}%</p>
+                        <p>Max Data: {{ statistics_list[symbol].max_data }}</p>
+                        <p>Min Data: {{ statistics_list[symbol].min_data }}</p>
+                        <p><span class="highlight">Data Change:</span> {{ statistics_list[symbol].data_change | round(2) }}%</p>
+                    </div>
+                {% endif %}
+            </div>
         {% endfor %}
     {% endif %}
 </body>
